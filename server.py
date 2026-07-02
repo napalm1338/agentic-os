@@ -167,10 +167,13 @@ class SecurityHeadersMiddleware:
                         b"style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
                         b"font-src 'self' https://fonts.gstatic.com; "
                         b"img-src 'self' data:; "
-                        b"connect-src 'self' http://127.0.0.1:* http://localhost:*; "
+                        b"connect-src 'self' http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*; "
                         b"frame-ancestors 'none'"
                     )
                     extra.append((b"content-security-policy", csp))
+                    # Dashboard HTML/JS/CSS: always revalidate so UI updates
+                    # appear without hard refreshes (SPA has no build hashes)
+                    extra.append((b"cache-control", b"no-cache"))
                 message["headers"] = list(headers) + extra
             await send(message)
 
