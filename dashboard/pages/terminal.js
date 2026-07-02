@@ -24,6 +24,14 @@ async function ensureXterm() {
 
 async function renderTerminal() {
   await ensureXterm();
+  // Page DOM is rebuilt on every navigation — drop stale xterm instances;
+  // panels live on server-side, termReattachPanels restores them via replay.
+  for (const p of Object.values(termState.panels)) {
+    try { p.ws.close(); } catch (e) {}
+    try { p.term.dispose(); } catch (e) {}
+  }
+  termState.panels = {};
+  termState.active = null;
   const content = document.getElementById('pageContent');
   content.innerHTML = `
     <div class="terminal-page">
@@ -100,7 +108,8 @@ function termAttach(panelId, agent, label) {
   });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
-  term.open(div);
+  // NOTE: term.open() is deferred to termActivate — opening into a
+  // hidden container makes xterm measure 0x0 and render at 80x24.
 
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const ws = new WebSocket(`${proto}://${location.host}/ws/terminal/${panelId}`);
@@ -126,12 +135,29 @@ function termActivate(panelId) {
   }
   const p = termState.panels[panelId];
   if (p) requestAnimationFrame(() => {
-    p.fit.fit();
-    if (p.ws.readyState === 1)
-      p.ws.send(JSON.stringify({ type: 'resize', cols: p.term.cols, rows: p.term.rows }));
+    const pane = document.getElementById(`pane-${panelId}`);
+    if (pane && !p.opened) { p.term.open(pane); p.opened = true; }
+    termFit(p);
     p.term.focus();
   });
   termRenderTabs();
+}
+
+function termFit(p) {
+  if (!p || !p.opened) return;
+  try {
+    p.fit.fit();
+    if (p.ws.readyState === 1)
+      p.ws.send(JSON.stringify({ type: 'resize', cols: p.term.cols, rows: p.term.rows }));
+  } catch (e) { /* container not measurable yet */ }
+}
+
+if (!window.__termResizeBound) {
+  window.__termResizeBound = true;
+  window.addEventListener('resize', () => {
+    const p = termState.panels[termState.active];
+    if (p && document.getElementById(`pane-${termState.active}`)) termFit(p);
+  });
 }
 
 function termRenderTabs() {
