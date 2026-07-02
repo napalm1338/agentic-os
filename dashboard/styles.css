@@ -48,6 +48,42 @@
   --shadow-lg: 0 8px 48px rgba(0, 0, 0, 0.08);
 }
 
+/* "Goldie" — warm Anthropic-style palette matching Julian's Agentic OS:
+   warm charcoal ground, terracotta accent, cream text, amber highlights */
+[data-theme="goldie"] {
+  --bg-primary: #1a1614;
+  --bg-secondary: #201b17;
+  --bg-card: #242019;
+  --bg-card-hover: #2d2721;
+  --bg-input: #16120f;
+  --border: #3a3229;
+  --border-hover: #cc785c;
+  --text-primary: #f0eee6;
+  --text-secondary: #b8ac9e;
+  --text-muted: #7d7365;
+  --accent: #cc785c;
+  --accent-light: #e08d6d;
+  --accent-glow: rgba(204, 120, 92, 0.28);
+  --green: #7fb069;
+  --green-dim: rgba(127, 176, 105, 0.15);
+  --red: #e5484d;
+  --red-dim: rgba(229, 72, 77, 0.15);
+  --yellow: #d4a027;
+  --yellow-dim: rgba(212, 160, 39, 0.15);
+  --blue: #6a9fb5;
+  --blue-dim: rgba(106, 159, 181, 0.15);
+  --pink: #cc785c;
+  --purple: #b8946f;
+  --shadow: 0 4px 24px rgba(10, 6, 3, 0.45);
+  --shadow-lg: 0 8px 48px rgba(10, 6, 3, 0.55);
+}
+[data-theme="goldie"] .nav-item { border-radius: 999px; }
+[data-theme="goldie"] .nav-item.active { box-shadow: 0 0 14px var(--accent-glow); }
+[data-theme="goldie"] .logo-text { letter-spacing: 0.12em; text-transform: uppercase; font-weight: 800; }
+[data-theme="goldie"] .btn-primary { box-shadow: 0 0 12px var(--accent-glow); }
+[data-theme="goldie"] .agent-dot.online,
+[data-theme="goldie"] .terminal-tab.state-ready .term-dot { box-shadow: 0 0 8px var(--green); }
+
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 html { font-size: 15px; scroll-behavior: smooth; }
@@ -1463,3 +1499,55 @@ pre {
 .terminal-banner a { color: #58a6ff; word-break: break-all; }
 .terminal-banner .term-hint { color: var(--text-dim, #8b949e); font-size: 11px; margin-left: 6px; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+/* ── Mission Control ───────────────────────────────────────────── */
+.mission-grid { display: grid; height: calc(100vh - 130px); gap: 12px;
+  grid-template-columns: 230px 1fr 270px;
+  grid-template-rows: 1fr 180px;
+  grid-template-areas: "rail chat goals" "rail journal journal"; }
+.mission-rail { grid-area: rail; } .mission-chat { grid-area: chat; }
+.mission-goals { grid-area: goals; } .mission-journal { grid-area: journal; }
+.mission-rail, .mission-chat, .mission-goals, .mission-journal {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px; overflow: auto;
+  display: flex; flex-direction: column; gap: 8px; }
+.mission-panel-title { font-size: 12px; font-weight: 700; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: .08em; display: flex;
+  justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mission-agent-card { display: flex; align-items: center; gap: 8px; padding: 9px 10px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-secondary); }
+.mission-agent-card.online { border-color: var(--green); box-shadow: 0 0 10px var(--green-dim); }
+.mission-agent-name { font-size: 13px; font-weight: 600; flex: 1; }
+.mission-agent-status { font-size: 10px; color: var(--text-muted); }
+.mission-terminal-link { margin-top: auto; text-align: center; text-decoration: none; }
+.mission-chat-log { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.mission-msg { max-width: 82%; padding: 9px 13px; border-radius: 14px; font-size: 13.5px;
+  white-space: pre-wrap; word-break: break-word; }
+.mission-msg.user { align-self: flex-end; background: var(--accent); color: #fff;
+  border-bottom-right-radius: 4px; }
+.mission-msg.agent { align-self: flex-start; background: var(--bg-secondary);
+  border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.mission-chat-bar { display: flex; gap: 8px; }
+.mission-chat-bar select { background: var(--bg-input); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 8px; }
+.mission-chat-bar input { flex: 1; padding: 10px 14px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--bg-input); color: var(--text-primary); }
+.mission-goal { padding: 8px 2px; }
+.mission-goal-row { display: flex; justify-content: space-between; font-size: 13px; }
+.mission-goal-pct { color: var(--text-muted); font-size: 11px; }
+.mission-goal-bar { height: 5px; border-radius: 3px; background: var(--bg-secondary);
+  margin-top: 5px; overflow: hidden; }
+.mission-goal-bar > div { height: 100%; background: var(--accent); border-radius: 3px;
+  transition: width .4s; }
+.mission-goal-add input { width: 100%; padding: 8px 10px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--bg-input); color: var(--text-primary); }
+.mission-journal textarea { flex: 1; resize: none; background: var(--bg-input);
+  color: var(--text-primary); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 10px; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.5; }
+.mission-empty { color: var(--text-muted); font-size: 12px; padding: 6px 2px; }
+.mission-journal-actions { display: flex; gap: 6px; }
+@media (max-width: 1100px) {
+  .mission-grid { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto auto;
+    grid-template-areas: "rail" "chat" "goals" "journal"; height: auto; }
+}

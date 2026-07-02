@@ -59,11 +59,15 @@ function toggleSidebar() {
   }
 }
 
+const THEME_CYCLE = ['dark', 'light', 'goldie'];
+
 function toggleTheme() {
   const html = document.documentElement;
-  const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  const cur = html.getAttribute('data-theme') || 'dark';
+  const next = THEME_CYCLE[(THEME_CYCLE.indexOf(cur) + 1) % THEME_CYCLE.length];
   html.setAttribute('data-theme', next);
   localStorage.setItem('theme', next);
+  if (typeof showToast === 'function') showToast(`Theme: ${next}`, 'info');
 }
 
 function loadTheme() {
@@ -113,6 +117,7 @@ const PAGE_TITLES = {
   dashboard: { title: 'Dashboard', breadcrumb: 'Overview' },
   skills: { title: 'Skills Hub', breadcrumb: 'Browse & execute skills' },
   terminal: { title: 'Terminal', breadcrumb: 'Live CLI agents on PTY' },
+  mission: { title: 'Mission Control', breadcrumb: 'Agents · chat · goals · journal' },
   memory: { title: 'Memory', breadcrumb: 'Shared brain context' },
   scheduler: { title: 'Scheduler', breadcrumb: 'Automated workflows' },
   audit: { title: 'Audit Log', breadcrumb: 'System activity trail' },

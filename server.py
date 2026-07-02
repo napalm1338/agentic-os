@@ -1012,8 +1012,8 @@ def execute_agent(agent: str, message: str) -> str:
 @app.post("/api/chat")
 def chat(req: ChatRequest):
     agent = req.agent.lower().strip()
-    if agent not in ["opencode", "hermes", "gemini"]:
-        raise HTTPException(400, "Agent must be one of: opencode, hermes, gemini")
+    if agent not in ["opencode", "hermes", "gemini", "claude"]:
+        raise HTTPException(400, "Agent must be one of: opencode, hermes, gemini, claude")
     message = (req.message or "").strip()
     if not message:
         raise HTTPException(400, "Message cannot be empty")
