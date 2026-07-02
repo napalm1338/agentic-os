@@ -1,9 +1,9 @@
 // Terminal page — live interactive CLI agents (freebuff, Claude Code, any
 // registered CLI) streamed over WebSocket into xterm.js.
 
-const XTERM_CSS = 'https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css';
-const XTERM_JS = 'https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js';
-const XTERM_FIT = 'https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js';
+const XTERM_CSS = '/dashboard/lib/xterm.min.css';
+const XTERM_JS = '/dashboard/lib/xterm.min.js';
+const XTERM_FIT = '/dashboard/lib/addon-fit.min.js';
 
 const termState = {
   panels: {},        // panelId -> {term, fit, ws, agent, state}

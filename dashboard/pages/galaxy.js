@@ -2,12 +2,123 @@
 // Stars = notes (size ∝ links, brightness = recency), lines = wikilinks,
 // dim stars = "ghost" notes referenced but not yet written.
 
-const FG3D_JS = 'https://cdn.jsdelivr.net/npm/3d-force-graph@1.79.0/dist/3d-force-graph.min.js';
-const MARKED_JS = 'https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js';
+// three UMD is loaded BEFORE 3d-force-graph on purpose: the bundle checks
+// window.THREE and adopts it, letting us build custom star/nebula objects
+// with the exact same three instance the graph renders with.
+const THREE_JS = '/dashboard/lib/three.min.js';
+const FG3D_JS = '/dashboard/lib/3d-force-graph.min.js';
+const MARKED_JS = '/dashboard/lib/marked.min.js';
 
 const galaxyState = { fg: null, poll: null, flight: null, flightAngle: 0, paused: false };
 
+// radial-gradient canvas texture — the universal "glow" building block
+function galaxyGlowTexture(inner, outer) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, inner);
+  g.addColorStop(0.35, outer);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+}
+
+// per-region hue: vault notes burn warm, brain memory runs violet-blue,
+// journal days go magenta — recency drives halo strength, not hue
+const GALAXY_HUES = {
+  vault: '#ffb27d',
+  brain: '#8f7bff',
+  journal: '#ff7dc0',
+  default: '#9aa3cf',
+};
+
+function galaxyStarColor(n) {
+  if (n.group === 'ghost') return '#565b78';
+  if (n.id && n.id.includes('journal/')) return GALAXY_HUES.journal;
+  return GALAXY_HUES[n.group] || GALAXY_HUES.default;
+}
+
+function galaxyMakeStar(n) {
+  const group = new THREE.Group();
+  const ghost = n.group === 'ghost';
+  const heat = Math.exp(-(n.age_days || 999) / 7);   // 1 fresh → 0 old
+  const color = galaxyStarColor(n);
+  const r = Math.max(1.4, 1.4 + (n.degree || 0) * 0.55);
+
+  const core = new THREE.Mesh(
+    new THREE.SphereGeometry(r, 24, 24),
+    new THREE.MeshBasicMaterial({
+      color: heat > 0.75 && !ghost ? '#fff3e0' : color,
+      transparent: ghost, opacity: ghost ? 0.5 : 1 }));
+  group.add(core);
+
+  if (!ghost) {
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: galaxyGlowTexture('rgba(255,255,255,0.9)', color),
+      color,
+      transparent: true,
+      opacity: 0.2 + heat * 0.35,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }));
+    const haloScale = r * (3.2 + heat * 2.6);
+    halo.scale.set(haloScale, haloScale, 1);
+    group.add(halo);
+  }
+  return group;
+}
+
+function galaxyAddNebula(scene) {
+  // distant starfield dust
+  const starCount = 2500;
+  const pos = new Float32Array(starCount * 3);
+  for (let i = 0; i < starCount; i++) {
+    const r = 1200 + Math.random() * 1800;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+    pos[i * 3 + 2] = r * Math.cos(phi);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({
+    color: 0x9aa0d8, size: 1.6, transparent: true, opacity: 0.7,
+    sizeAttenuation: true, depthWrite: false })));
+
+  // soft nebula clouds — big additive billboards in violet/magenta/indigo
+  const clouds = [
+    ['rgba(148, 90, 255, 0.85)', 'rgba(88, 40, 190, 0.35)'],
+    ['rgba(255, 90, 220, 0.7)', 'rgba(160, 40, 190, 0.3)'],
+    ['rgba(90, 110, 255, 0.7)', 'rgba(40, 50, 190, 0.3)'],
+    ['rgba(190, 90, 255, 0.7)', 'rgba(110, 40, 200, 0.3)'],
+    ['rgba(255, 140, 200, 0.55)', 'rgba(180, 60, 160, 0.25)'],
+    ['rgba(110, 70, 230, 0.75)', 'rgba(60, 30, 160, 0.3)'],
+  ];
+  clouds.forEach((c, i) => {
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: galaxyGlowTexture(c[0], c[1]),
+      transparent: true,
+      opacity: 0.28,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }));
+    const angle = (i / clouds.length) * Math.PI * 2 + Math.random();
+    const dist = 550 + Math.random() * 550;
+    sprite.position.set(
+      Math.cos(angle) * dist,
+      (Math.random() - 0.5) * 500,
+      Math.sin(angle) * dist);
+    const s = 1300 + Math.random() * 1100;
+    sprite.scale.set(s, s * (0.55 + Math.random() * 0.5), 1);
+    scene.add(sprite);
+  });
+}
+
 async function renderGalaxy() {
+  await loadScript(THREE_JS);
   await loadScript(FG3D_JS);
   await loadScript(MARKED_JS);
   galaxyDestroy();
@@ -37,18 +148,17 @@ async function renderGalaxy() {
     .getPropertyValue('--accent').trim() || '#6c5ce7';
 
   const fg = ForceGraph3D()(el)
-    .backgroundColor('#05060f')
+    .backgroundColor('#08051a')
     .showNavInfo(false)
     .nodeLabel(n => `${n.title}${n.group === 'ghost' ? ' (unwritten)' : ''}`)
-    .nodeColor(n => galaxyColor(n, themeAccent))
-    .nodeVal(n => Math.max(1.5, 1.5 + n.degree * 1.2))
-    .nodeOpacity(0.95)
-    .linkColor(() => '#3d4470')
-    .linkOpacity(0.35)
-    .linkWidth(0.4)
+    .nodeThreeObject(n => galaxyMakeStar(n))
+    .linkColor(() => '#7a6fd0')
+    .linkOpacity(0.45)
+    .linkWidth(0.5)
     .onNodeClick(n => galaxyOpenNote(n))
     .onEngineStop(() => {});
   galaxyState.fg = fg;
+  galaxyAddNebula(fg.scene());
 
   const fitSize = () => {
     fg.width(el.clientWidth);
