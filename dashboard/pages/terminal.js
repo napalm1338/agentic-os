@@ -120,6 +120,9 @@ function termAttach(panelId, agent, label) {
     else if (msg.type === 'login_url') termShowLogin(msg.url);
   };
   ws.onclose = () => termOnState(panelId, { state: 'disconnected' });
+  // The first fit usually runs while the socket is still CONNECTING and the
+  // PTY-resize is dropped — refit on open so the PTY always learns its size.
+  ws.onopen = () => { const p = termState.panels[panelId]; if (p) termFit(p); };
   term.onData(d => { if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'in', data: d })); });
 
   termState.panels[panelId] = { term, fit, ws, agent, label: label || agent, state: 'launching' };
@@ -174,7 +177,10 @@ function termRenderTabs() {
 function termOnState(panelId, msg) {
   const p = termState.panels[panelId];
   if (!p) return;
+  const wasNotReady = p.state !== 'ready';
   p.state = msg.state;
+  if (msg.state === 'ready' && wasNotReady && panelId === termState.active)
+    termFit(p);   // fonts/CSS may have settled since the first fit
   if (msg.state === 'exited' || msg.state === 'disconnected') {
     try { p.ws.close(); } catch (e) {}
   }

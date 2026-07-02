@@ -38,9 +38,13 @@ DEFAULT_AGENTS = [
         "login_prompt": r"Press ENTER to login",
         "login_url": r"https://freebuff\.com/login\?auth_code=\S+",
         "picker": r"(select|choose|pick).{0,40}model|RECOMMENDED",
+        # single-instance guard screen: "Take over" is preselected, Enter accepts
+        "recover_prompt": r"already running",
         "ready": r"Enter a coding task|❯",
         "handoff": "file",
         "ctrl_c_twice": True,
+        # freebuff allows only one instance per machine — reuse the live panel
+        "singleton": True,
     },
     {
         "id": "claude",
@@ -94,6 +98,7 @@ class Panel:
         self._lock = threading.Lock()
         self._sent_login_enter = False
         self._picker_seen = None
+        self._recover_seen = None
         self._alive = True
 
         self._child = pexpect.spawn(
@@ -153,6 +158,10 @@ class Panel:
     def _screen_text(self) -> str:
         return "\n".join(l.rstrip() for l in self._screen.display if l.strip())
 
+    def screen_text(self) -> str:
+        """Current rendered screen (public — used for output fallback)."""
+        return self._screen_text()
+
     def _set_state(self, state: str, **extra):
         if state != self.state:
             self.state = state
@@ -190,6 +199,18 @@ class Panel:
                 self._set_state("picker")
             elif now - self._picker_seen >= PICKER_SETTLE:
                 self._picker_seen = None
+                self._child.send(b"\r")
+
+        # single-instance guard screen (e.g. freebuff "already running"):
+        # the recover option is preselected — settle, then Enter to take over
+        if cfg.get("recover_prompt") and self.state != "task" and \
+                re.search(cfg["recover_prompt"], text, re.I):
+            now = time.time()
+            if self._recover_seen is None:
+                self._recover_seen = now
+                self._set_state("recovering")
+            elif now - self._recover_seen >= PICKER_SETTLE:
+                self._recover_seen = None
                 self._child.send(b"\r")
 
     # ── input / tasks / lifecycle ─────────────────────────────────
@@ -259,9 +280,20 @@ class PanelRegistry:
         config = get_agent_config(agent_id)
         if not config:
             raise KeyError(f"No CLI agent config for '{agent_id}'")
+        if config.get("singleton"):
+            existing = self.find(agent_id)
+            if existing:
+                return existing
         panel = Panel(config)
         self._panels[panel.id] = panel
         return panel
+
+    def find(self, agent_id: str):
+        """Live (non-exited) panel for an agent, if any."""
+        for p in self._panels.values():
+            if p.config["id"] == agent_id and p.state != "exited":
+                return p
+        return None
 
     def get(self, panel_id: str):
         return self._panels.get(panel_id)

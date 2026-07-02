@@ -424,17 +424,20 @@ def run_skill(name: str, req: Optional[SkillRunRequest] = None):
     if agent_choice == "auto":
         devops_keywords = ["devops", "audit", "deploy", "k8s", "gcp", "infra", "terraform"]
         research_keywords = ["research", "synthesis", "analyze", "search", "compare"]
+        coding_keywords = ["code", "build", "implement", "fix", "refactor", "draft"]
         if any(k in name for k in devops_keywords):
             agent_choice = "opencode"
         elif any(k in name for k in research_keywords):
             agent_choice = "gemini"
+        elif any(k in name for k in coding_keywords):
+            agent_choice = "freebuff"
         else:
             # Check SKILL.md for explicit agent assignment
             for line in skill_md.split('\n'):
                 line = line.strip()
                 if "Primary:" in line:
                     candidate = line.split(":")[-1].strip().lower()
-                    if candidate in ("opencode", "hermes", "gemini", "claude"):
+                    if candidate in ("opencode", "hermes", "gemini", "claude", "freebuff"):
                         agent_choice = candidate
                         break
             if agent_choice == "auto":
@@ -945,6 +948,12 @@ def clean_hermes_output(raw: str) -> str:
 
 def execute_agent(agent: str, message: str) -> str:
     try:
+        if agent == "freebuff":
+            from agents.command_agent import run_task, CommandAgentError
+            try:
+                return run_task(message)
+            except CommandAgentError as e:
+                return f"⚠ freebuff: {e}"
         if agent == "claude":
             try:
                 code, out, err = run_cli(["claude", "-p", message], timeout=180)
@@ -1027,8 +1036,8 @@ def execute_agent(agent: str, message: str) -> str:
 @app.post("/api/chat")
 def chat(req: ChatRequest):
     agent = req.agent.lower().strip()
-    if agent not in ["opencode", "hermes", "gemini", "claude"]:
-        raise HTTPException(400, "Agent must be one of: opencode, hermes, gemini, claude")
+    if agent not in ["opencode", "hermes", "gemini", "claude", "freebuff"]:
+        raise HTTPException(400, "Agent must be one of: opencode, hermes, gemini, claude, freebuff")
     message = (req.message or "").strip()
     if not message:
         raise HTTPException(400, "Message cannot be empty")

@@ -60,7 +60,7 @@ async function missionRefreshAgents() {
       `<a class="btn btn-sm mission-terminal-link" href="#terminal">🖥 Open Terminal →</a>`;
     const sel = document.getElementById('missionAgentSel');
     if (sel && !sel.options.length) {
-      const chatAgents = s.agents.filter(a => a.name !== 'freebuff');
+      const chatAgents = s.agents;   // freebuff included — it IS the command agent
       sel.innerHTML = chatAgents.map(a =>
         `<option value="${a.name}" ${a.name === missionState.agent ? 'selected' : ''}>${a.name}</option>`).join('');
     }
