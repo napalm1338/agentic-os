@@ -1500,6 +1500,37 @@ pre {
 .terminal-banner .term-hint { color: var(--text-dim, #8b949e); font-size: 11px; margin-left: 6px; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
 
+/* ── Memory Galaxy ─────────────────────────────────────────────── */
+.galaxy-wrap { position: relative; height: calc(100vh - 130px);
+  border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+.galaxy-canvas { position: absolute; inset: 0; }
+.galaxy-hud { position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 10px 14px; pointer-events: none;
+  background: linear-gradient(rgba(5, 6, 15, .85), transparent); }
+.galaxy-hud .btn { pointer-events: auto; }
+.galaxy-stats { font-size: 12px; color: #9aa3cf; font-family: var(--font-mono); }
+.galaxy-hud-actions { display: flex; align-items: center; gap: 10px; }
+.galaxy-hint { font-size: 11px; color: #5d6580; }
+.galaxy-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 380px;
+  max-width: 85%; z-index: 6; background: rgba(13, 17, 30, .96);
+  border-left: 1px solid var(--border); transform: translateX(105%);
+  transition: transform .3s cubic-bezier(.4, 0, .2, 1);
+  display: flex; flex-direction: column; }
+.galaxy-drawer.open { transform: translateX(0); }
+.galaxy-drawer-head { display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+  font-weight: 700; font-size: 14px; }
+.galaxy-drawer-body { padding: 14px; overflow-y: auto; font-size: 13.5px; line-height: 1.6; }
+.galaxy-drawer-body h1 { font-size: 18px; margin-bottom: 8px; }
+.galaxy-drawer-body h2 { font-size: 15px; margin: 12px 0 6px; }
+.galaxy-drawer-body p, .galaxy-drawer-body ul { margin-bottom: 8px; }
+.galaxy-drawer-body ul { padding-left: 18px; }
+.galaxy-drawer-body code { background: var(--bg-secondary); padding: 1px 5px;
+  border-radius: 4px; font-size: 12px; }
+.galaxy-wikilink { color: var(--accent-light); cursor: pointer; text-decoration: none;
+  border-bottom: 1px dashed var(--accent-glow); }
+
 /* ── Mission Control ───────────────────────────────────────────── */
 .mission-grid { display: grid; height: calc(100vh - 130px); gap: 12px;
   grid-template-columns: 230px 1fr 270px;

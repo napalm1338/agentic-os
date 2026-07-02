@@ -227,6 +227,21 @@ def get_status():
         "uptime": time.time(),
     }
 
+# ─── Routes: Memory Galaxy (vault graph) ──────────────────────────
+
+@app.get("/api/vault/graph")
+def vault_graph():
+    from vault_graph import build_graph
+    return build_graph()
+
+@app.get("/api/vault/note")
+def vault_note(id: str = Query(...)):
+    from vault_graph import read_note
+    note = read_note(id)
+    if note is None:
+        raise HTTPException(404, "Note not found")
+    return note
+
 # ─── Routes: Terminals (interactive CLI agents on PTY) ────────────
 
 class TerminalOpenRequest(BaseModel):

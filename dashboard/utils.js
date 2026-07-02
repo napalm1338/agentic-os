@@ -118,6 +118,7 @@ const PAGE_TITLES = {
   skills: { title: 'Skills Hub', breadcrumb: 'Browse & execute skills' },
   terminal: { title: 'Terminal', breadcrumb: 'Live CLI agents on PTY' },
   mission: { title: 'Mission Control', breadcrumb: 'Agents · chat · goals · journal' },
+  galaxy: { title: 'Memory Galaxy', breadcrumb: 'Your second brain, visible' },
   memory: { title: 'Memory', breadcrumb: 'Shared brain context' },
   scheduler: { title: 'Scheduler', breadcrumb: 'Automated workflows' },
   audit: { title: 'Audit Log', breadcrumb: 'System activity trail' },
