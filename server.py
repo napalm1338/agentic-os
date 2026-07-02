@@ -18,7 +18,7 @@ from typing import Optional
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -42,6 +42,11 @@ async def lifespan(app: FastAPI):
             _scheduler_instance.stop()
         except Exception:
             pass
+    try:
+        from agents.pty_driver import registry as _terminal_registry
+        _terminal_registry.shutdown()
+    except Exception:
+        pass
 
 app = FastAPI(title="Agentic OS", version="1.1.0", lifespan=lifespan)
 
@@ -190,6 +195,14 @@ def check_agent(name: str) -> dict:
             exists = shutil.which("gemini") is not None
             logged_in = oauth.exists() and "ya29" in oauth.read_text()
             status = "online" if exists and logged_in else "offline" if not exists else "warning"
+        elif name == "claude":
+            exists = shutil.which("claude") is not None
+            creds = Path.home() / ".claude" / ".credentials.json"
+            status = "online" if exists and creds.exists() else "offline" if not exists else "warning"
+        elif name == "freebuff":
+            exists = shutil.which("freebuff") is not None
+            creds = Path.home() / ".config" / "manicode" / "credentials.json"
+            status = "online" if exists and creds.exists() else "offline" if not exists else "warning"
         else:
             status = "offline"
     except Exception:
@@ -200,7 +213,7 @@ def check_agent(name: str) -> dict:
 
 @app.get("/api/status")
 def get_status():
-    agents = [check_agent(a) for a in ["opencode", "hermes", "gemini"]]
+    agents = [check_agent(a) for a in ["opencode", "hermes", "gemini", "claude", "freebuff"]]
     skills_dir = BASE_DIR / "skills"
     skills = [p.name for p in skills_dir.iterdir()
               if p.is_dir() and not p.name.startswith("_")] if skills_dir.exists() else []
@@ -210,6 +223,95 @@ def get_status():
         "skills_count": len(skills),
         "uptime": time.time(),
     }
+
+# ─── Routes: Terminals (interactive CLI agents on PTY) ────────────
+
+class TerminalOpenRequest(BaseModel):
+    agent: str
+
+@app.get("/api/terminals")
+def list_terminals():
+    from agents.pty_driver import registry, load_agent_configs
+    agents = []
+    for cfg in load_agent_configs():
+        agents.append({
+            "id": cfg["id"],
+            "label": cfg.get("label", cfg["id"]),
+            "installed": shutil.which(cfg["command"].split()[0]) is not None,
+        })
+    return {"agents": agents, "panels": registry.list()}
+
+@app.post("/api/terminals")
+def open_terminal(req: TerminalOpenRequest):
+    from agents.pty_driver import registry
+    try:
+        panel = registry.open(req.agent)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Failed to spawn '{req.agent}': {e}")
+    append_audit({"type": "terminal_open", "agent": req.agent,
+                  "panel": panel.id, "timestamp": get_timestamp()})
+    return panel.info()
+
+@app.delete("/api/terminals/{panel_id}")
+def close_terminal(panel_id: str):
+    from agents.pty_driver import registry
+    registry.close(panel_id)
+    return {"ok": True}
+
+@app.websocket("/ws/terminal/{panel_id}")
+async def terminal_ws(websocket: WebSocket, panel_id: str):
+    import asyncio
+    from agents.pty_driver import registry
+    panel = registry.get(panel_id)
+    if not panel:
+        await websocket.close(code=4404)
+        return
+    await websocket.accept()
+    queue: "asyncio.Queue" = asyncio.Queue()
+    replay = panel.subscribe(queue, asyncio.get_running_loop())
+    if replay:
+        await websocket.send_json(
+            {"type": "out", "data": replay.decode("utf-8", errors="replace")})
+    await websocket.send_json({"type": "state", "state": panel.state,
+                               "login_url": panel.login_url})
+
+    async def pump_output():
+        while True:
+            msg = await queue.get()
+            await websocket.send_json(msg)
+
+    async def pump_input():
+        while True:
+            msg = await websocket.receive_json()
+            kind = msg.get("type")
+            if kind == "in":
+                panel.write(msg.get("data", ""))
+            elif kind == "resize":
+                panel.resize(int(msg.get("cols", 120)), int(msg.get("rows", 30)))
+            elif kind == "task":
+                panel.task(msg.get("text", ""))
+                append_audit({"type": "terminal_task", "panel": panel.id,
+                              "agent": panel.config["id"],
+                              "input": msg.get("text", "")[:200],
+                              "timestamp": get_timestamp()})
+            elif kind == "interrupt":
+                panel.interrupt()
+            elif kind == "kill":
+                registry.close(panel.id)
+                break
+
+    out_task = asyncio.create_task(pump_output())
+    try:
+        await pump_input()
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
+        out_task.cancel()
+        panel.unsubscribe(queue)
 
 # ─── Routes: Brain ────────────────────────────────────────────────
 
@@ -314,7 +416,7 @@ def run_skill(name: str, req: Optional[SkillRunRequest] = None):
                 line = line.strip()
                 if "Primary:" in line:
                     candidate = line.split(":")[-1].strip().lower()
-                    if candidate in ("opencode", "hermes", "gemini"):
+                    if candidate in ("opencode", "hermes", "gemini", "claude"):
                         agent_choice = candidate
                         break
             if agent_choice == "auto":
@@ -825,6 +927,14 @@ def clean_hermes_output(raw: str) -> str:
 
 def execute_agent(agent: str, message: str) -> str:
     try:
+        if agent == "claude":
+            try:
+                code, out, err = run_cli(["claude", "-p", message], timeout=180)
+            except subprocess.TimeoutExpired:
+                return f"⏱ Agent 'claude' timed out.\n\n**Message:** {message[:100]}"
+            if code == 0 and (out or "").strip():
+                return out.strip()
+            return f"⚠ Claude Code error (exit {code}): {(err or out or 'no output')[:500]}"
         if agent == "opencode":
             try:
                 code, out, err = run_cli(["opencode", "run", "--format", "json", message], timeout=30)

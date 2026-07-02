@@ -1434,3 +1434,32 @@ pre {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ── Terminal page ─────────────────────────────────────────────── */
+.terminal-page { display: flex; flex-direction: column; gap: 10px; height: calc(100vh - 140px); }
+.terminal-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.terminal-launchers { display: flex; gap: 6px; flex-wrap: wrap; }
+.terminal-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.terminal-tab { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 8px 8px 0 0;
+  background: var(--bg-card, #161b22); border: 1px solid var(--border, #30363d); border-bottom: none;
+  cursor: pointer; font-size: 12px; opacity: .7; }
+.terminal-tab.active { opacity: 1; border-color: var(--accent, #6c5ce7); }
+.terminal-tab .term-dot { width: 8px; height: 8px; border-radius: 50%; background: #8b949e; }
+.terminal-tab.state-ready .term-dot { background: #3fb950; box-shadow: 0 0 6px #3fb95088; }
+.terminal-tab.state-task .term-dot { background: #a371f7; animation: pulse 1.2s infinite; }
+.terminal-tab.state-login .term-dot, .terminal-tab.state-picker .term-dot { background: #d29922; }
+.terminal-tab.state-exited .term-dot, .terminal-tab.state-disconnected .term-dot { background: #f85149; }
+.terminal-tab .term-state { font-size: 10px; color: var(--text-dim, #8b949e); }
+.terminal-host { flex: 1; min-height: 320px; background: #0d1117; border: 1px solid var(--border, #30363d);
+  border-radius: 10px; padding: 6px; overflow: hidden; }
+.terminal-pane { height: 100%; }
+.terminal-pane .xterm { height: 100%; }
+.terminal-taskbar { display: flex; gap: 8px; }
+.terminal-taskbar input { flex: 1; padding: 10px 14px; border-radius: 10px;
+  border: 1px solid var(--border, #30363d); background: var(--bg-card, #161b22);
+  color: var(--text, #e6edf3); font-size: 13px; }
+.terminal-banner { padding: 10px 14px; border-radius: 10px; background: #1c2128;
+  border: 1px solid #d29922; font-size: 13px; }
+.terminal-banner a { color: #58a6ff; word-break: break-all; }
+.terminal-banner .term-hint { color: var(--text-dim, #8b949e); font-size: 11px; margin-left: 6px; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }

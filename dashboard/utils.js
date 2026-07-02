@@ -112,6 +112,7 @@ function renderSkeleton(count = 3) {
 const PAGE_TITLES = {
   dashboard: { title: 'Dashboard', breadcrumb: 'Overview' },
   skills: { title: 'Skills Hub', breadcrumb: 'Browse & execute skills' },
+  terminal: { title: 'Terminal', breadcrumb: 'Live CLI agents on PTY' },
   memory: { title: 'Memory', breadcrumb: 'Shared brain context' },
   scheduler: { title: 'Scheduler', breadcrumb: 'Automated workflows' },
   audit: { title: 'Audit Log', breadcrumb: 'System activity trail' },
